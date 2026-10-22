@@ -1,0 +1,227 @@
+/* ── 即时指令：边缘药丸(收起) + 大卡片(展开) ── */
+/* 设计：磨砂玻璃药丸吸附右缘 → 轻点展开大卡片；超时陶土橙；
+   手势：轻点展开/收起 · 长按取消(描边充满) · 左滑完成 · 竖拖沿右缘吸附 */
+:root {
+  --cmd-clay: #B65E4D;                 /* 浅底超时陶土 */
+  --cmd-clay-dim: #E9A488;             /* 暗底偏亮陶土 */
+  --cmd-green: #86B27C;
+  --cmd-ring-fg: #6B6359;
+  --cmd-ring-bg: rgba(60,50,40,0.14);
+  --cmd-text: #1A1714;
+  --cmd-text2: #6B6359;
+  --cmd-text3: #A89F92;
+  --cmd-edge-bg: rgba(255,255,255,0.62);
+  --cmd-card-bg: rgba(255,255,255,0.92);
+  --cmd-edge-border: rgba(255,255,255,0.8);
+  --cmd-card-border: rgba(255,255,255,0.9);
+  --cmd-edge-shadow: -4px 4px 16px rgba(60,50,40,0.14);
+  --cmd-card-shadow: 0 18px 44px rgba(60,50,40,0.22);
+  --cmd-clay-cur: var(--cmd-clay);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cmd-clay-cur: var(--cmd-clay-dim);
+    --cmd-ring-fg: #CFCDC8;
+    --cmd-ring-bg: rgba(255,255,255,0.16);
+    --cmd-text: #EDEBE6;
+    --cmd-text2: #A8A6A0;
+    --cmd-text3: #6E6C66;
+    --cmd-edge-bg: rgba(70,68,72,0.5);
+    --cmd-card-bg: rgba(40,40,44,0.9);
+    --cmd-edge-border: rgba(255,255,255,0.16);
+    --cmd-card-border: rgba(255,255,255,0.12);
+    --cmd-edge-shadow: -4px 4px 18px rgba(0,0,0,0.32);
+    --cmd-card-shadow: 0 18px 50px rgba(0,0,0,0.5);
+  }
+}
+
+/* 收起：边缘药丸 */
+.cmd-edge {
+  position: fixed;
+  right: 0;
+  width: 54px;
+  border-radius: 16px 0 0 16px;
+  padding: 9px 4px 10px;
+  background: var(--cmd-edge-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-top: 0.5px solid var(--cmd-edge-border);
+  border-left: 0.5px solid var(--cmd-edge-border);
+  border-bottom: 0.5px solid var(--cmd-edge-border);
+  box-shadow: var(--cmd-edge-shadow);
+  z-index: 62;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: top 0.25s cubic-bezier(.3,0,.2,1);
+}
+.cmd-edge.show { display: flex; }
+.cmd-edge.dragging { transition: none; }
+.cmd-edge:active { cursor: grabbing; }
+.cmd-edge-ring {
+  position: relative;
+  width: 17px; height: 17px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cmd-edge-ring svg { transform: rotate(-90deg); display: block; }
+.cmd-edge-ring-dot {
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 999px;
+  background: var(--cmd-ring-fg);
+}
+.cmd-edge.over .cmd-edge-ring-dot { background: var(--cmd-clay-cur); animation: cmd-pulse 1.3s ease-in-out infinite; }
+.cmd-edge-time {
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--cmd-text);
+}
+.cmd-edge.over .cmd-edge-time { color: var(--cmd-clay-cur); }
+.cmd-edge-prog {
+  position: absolute;
+  right: 0; top: 8px; bottom: 8px;
+  width: 2.5px;
+  border-radius: 999px;
+  background: var(--cmd-ring-bg);
+  overflow: hidden;
+}
+.cmd-edge-prog-fill {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: var(--cmd-ring-fg);
+  border-radius: 999px;
+  transition: height 0.5s cubic-bezier(.3,0,.2,1), background 0.3s;
+  height: 0%;
+}
+.cmd-edge.over .cmd-edge-prog-fill { background: var(--cmd-clay-cur); }
+
+/* 长按取消：陶土橙描边充满 0→3px（环形遮罩在非圆形上效果糟，改 inset 描边） */
+.cmd-edge::after, .cmd-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 calc(var(--cmd-hold-pct, 0) * 3px) var(--cmd-clay-cur);
+  opacity: calc(var(--cmd-hold-pct, 0) * 1.1);
+  transition: opacity 0.1s ease;
+}
+
+/* 左滑揭示绿色 ✓（贴右缘原位置） */
+.cmd-done-reveal {
+  position: fixed;
+  right: 14px;
+  z-index: 61;
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  background: rgba(134,178,124,0.2);
+  color: var(--cmd-green);
+  display: none;
+  align-items: center; justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+}
+.cmd-done-reveal.show { display: flex; }
+
+/* 展开：大卡片（贴右缘悬浮） */
+.cmd-card {
+  position: fixed;
+  right: 14px;
+  width: 252px;
+  border-radius: 24px;
+  background: var(--cmd-card-bg);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border: 0.5px solid var(--cmd-card-border);
+  box-shadow: var(--cmd-card-shadow);
+  padding: 15px 17px 14px;
+  display: none;
+  flex-direction: column;
+  z-index: 63;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: top 0.25s cubic-bezier(.3,0,.2,1);
+}
+.cmd-card.show { display: flex; animation: cmd-pop 0.26s cubic-bezier(.3,0,.2,1); }
+.cmd-card.dragging { transition: none; }
+.cmd-card-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
+.cmd-card-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--cmd-clay-cur); }
+.cmd-card.over .cmd-card-dot { animation: cmd-pulse 1.3s ease-in-out infinite; }
+.cmd-card-tag {
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  color: var(--cmd-clay-cur); text-transform: uppercase;
+}
+.cmd-card-close { margin-left: auto; padding: 2px; color: var(--cmd-text3); cursor: pointer; display: flex; }
+.cmd-card-text {
+  font-size: 17px; font-weight: 600; line-height: 1.4;
+  color: var(--cmd-text); margin-bottom: 14px; word-break: break-word;
+}
+.cmd-card-timerow { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+.cmd-card-time {
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 32px; font-weight: 600; letter-spacing: 0.5px;
+  color: var(--cmd-text); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.cmd-card.over .cmd-card-time { color: var(--cmd-clay-cur); }
+.cmd-card-status { font-size: 12.5px; color: var(--cmd-text2); }
+.cmd-card.over .cmd-card-status { color: var(--cmd-clay-cur); }
+.cmd-card-from {
+  margin-left: auto;
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 11px; color: var(--cmd-text3);
+}
+.cmd-card-bar {
+  position: relative; height: 4px; border-radius: 999px;
+  background: rgba(60,50,40,0.1); overflow: hidden; margin-bottom: 13px;
+}
+@media (prefers-color-scheme: dark) { .cmd-card-bar { background: rgba(255,255,255,0.12); } }
+.cmd-card-bar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--cmd-ring-fg); border-radius: 999px;
+  transition: width 0.5s cubic-bezier(.3,0,.2,1), background 0.3s;
+  width: 0%;
+}
+.cmd-card.over .cmd-card-bar-fill { background: var(--cmd-clay-cur); }
+.cmd-card-hints {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11.5px; color: var(--cmd-text3);
+}
+.cmd-card-hint { display: inline-flex; align-items: center; gap: 4px; transition: color 0.2s ease; }
+.cmd-card-hint.swipe-active { color: var(--cmd-green); }
+
+/* 完成/取消反馈胶囊 */
+.cmd-result {
+  position: fixed;
+  right: 14px;
+  z-index: 64;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  background: var(--cmd-card-bg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 0.5px solid var(--cmd-card-border);
+  box-shadow: 0 8px 22px rgba(60,50,40,0.18);
+  font-size: 13.5px; font-weight: 600;
+  color: var(--cmd-text);
+}
+@media (prefers-color-scheme: dark) { .cmd-result { box-shadow: 0 8px 24px rgba(0,0,0,0.4); } }
+.cmd-result.show { display: inline-flex; animation: cmd-pop 0.24s cubic-bezier(.3,0,.2,1); }
+.cmd-result-icon { width: 20px; height: 20px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
+.cmd-result.done .cmd-result-icon { background: rgba(134,178,124,0.2); color: var(--cmd-green); }
+.cmd-result.cancel .cmd-result-icon { background: rgba(182,94,77,0.16); color: var(--cmd-clay); }
+
+@keyframes cmd-pulse { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.35; transform:scale(.7);} }
+@keyframes cmd-pop { 0%{transform:scale(.85); opacity:0;} 100%{transform:scale(1); opacity:1;} }

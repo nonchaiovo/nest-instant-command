@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Instant Command · Demo</title>
+<link rel="stylesheet" href="command.css">
+<style>
+  /* 演示页外壳（不属于组件） */
+  :root { --paper:#f5f0e7; --ink:#221f1c; --muted:#6d645c; --kraft:#e8dfd0; }
+  @media (prefers-color-scheme: dark) { :root { --paper:#1d1b19; --ink:#ede6d4; --muted:#a8a097; --kraft:#2c2925; } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink);
+    font:15px/1.7 -apple-system,"PingFang SC",system-ui,sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:48px 20px 120px; }
+  h1 { font:600 24px/1.3 "Songti SC",serif; margin:0 0 6px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  .panel { background:var(--kraft); border-radius:18px; padding:18px; margin-bottom:16px; }
+  .panel h2 { font:600 11px ui-monospace,Menlo,monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  input { flex:1 1 180px; min-width:0; font:inherit; color:inherit; background:var(--paper); border:0; border-radius:12px; padding:10px 12px; }
+  input[type=number] { flex:0 0 90px; }
+  button.go { font:600 14px/1 inherit; border:0; border-radius:999px; padding:12px 18px; background:var(--ink); color:var(--paper); cursor:pointer; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .chips button { font:13px inherit; border:0; border-radius:999px; padding:6px 12px; background:var(--paper); color:inherit; cursor:pointer; }
+  pre { margin:0; white-space:pre-wrap; font:13px/1.7 ui-monospace,Menlo,monospace; color:var(--muted); min-height:1.7em; }
+  ul.how { margin:0; padding-left:18px; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>即时指令</h1>
+  <p class="sub">AI 在回复里推一条指令，屏幕右缘出现计时药丸。<br>做完左滑，用了多久、超了多少，AI 下一轮就知道。</p>
+
+  <section class="panel">
+    <h2>模拟 AI 推一条指令</h2>
+    <div class="row">
+      <input id="d-title" value="把被子叠好，拍照" aria-label="指令内容">
+      <input id="d-min" type="number" min="0" step="0.5" value="1" aria-label="分钟（0 = 不计时）">
+      <button class="go" id="d-push">推送</button>
+    </div>
+    <div class="chips">
+      <button data-t="去喝一杯水" data-m="0.5">喝水 · 30 秒</button>
+      <button data-t="站起来伸个懒腰" data-m="0.1">伸懒腰 · 6 秒</button>
+      <button data-t="安静读书" data-m="0">读书 · 不计时</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>手势</h2>
+    <ul class="how">
+      <li>轻点药丸 → 展开大卡片；再点 → 收回</li>
+      <li>上下拖 → 沿右缘移动并记住位置</li>
+      <li>左滑超过 64px → 完成</li>
+      <li>长按 0.62 秒（陶土色描边充满）→ 取消</li>
+      <li>倒计时走完不会消失，转为红色的超时计时</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>AI 下一轮会收到</h2>
+    <pre id="d-feedback">（完成一条指令后显示）</pre>
+  </section>
+</main>
+
+<!-- 即时指令 · 边缘药丸（收起态，吸右缘，竖向可拖） -->
+<div class="cmd-edge" id="cmd-edge" aria-hidden="true">
+  <div class="cmd-edge-ring">
+    <svg width="17" height="17">
+      <circle cx="8.5" cy="8.5" r="7.4" fill="none" stroke="var(--cmd-ring-bg)" stroke-width="2.2"/>
+      <circle id="cmd-edge-ring-fg" cx="8.5" cy="8.5" r="7.4" fill="none" stroke="var(--cmd-ring-fg)" stroke-width="2.2"
+              stroke-linecap="round" stroke-dasharray="46.5" stroke-dashoffset="46.5"
+              style="transition: stroke-dashoffset 0.5s cubic-bezier(.3,0,.2,1), stroke 0.3s;"/>
+    </svg>
+    <div class="cmd-edge-ring-dot"></div>
+  </div>
+  <div class="cmd-edge-time" id="cmd-edge-time">00:00</div>
+  <div class="cmd-edge-prog"><div class="cmd-edge-prog-fill" id="cmd-edge-prog"></div></div>
+</div>
+
+<!-- 左滑揭示绿色 ✓ -->
+<div class="cmd-done-reveal" id="cmd-done-reveal" aria-hidden="true">
+  <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>
+</div>
+
+<!-- 即时指令 · 展开大卡片（轻点折回药丸 · 长按取消 · 左滑完成 · 竖拖沿边缘吸附） -->
+<div class="cmd-card" id="cmd-card" aria-hidden="true">
+  <div class="cmd-card-head">
+    <span class="cmd-card-dot"></span>
+    <span class="cmd-card-tag">指令</span>
+    <span class="cmd-card-close" id="cmd-card-close" role="button" aria-label="收起">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5-5 5 5"/></svg>
+    </span>
+  </div>
+  <div class="cmd-card-text" id="cmd-card-text"></div>
+  <div class="cmd-card-timerow">
+    <span class="cmd-card-time" id="cmd-card-time">00:00</span>
+    <span class="cmd-card-status" id="cmd-card-status">还剩</span>
+    <span class="cmd-card-from" id="cmd-card-from"></span>
+  </div>
+  <div class="cmd-card-bar"><div class="cmd-card-bar-fill" id="cmd-card-bar"></div></div>
+  <div class="cmd-card-hints">
+    <span class="cmd-card-hint" id="cmd-card-hint-swipe">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>
+      左滑完成
+    </span>
+    <span class="cmd-card-hint">长按取消</span>
+  </div>
+</div>
+
+<!-- 完成/取消反馈胶囊 -->
+<div class="cmd-result" id="cmd-result" aria-hidden="true">
+  <span class="cmd-result-icon" id="cmd-result-icon"></span>
+  <span id="cmd-result-text"></span>
+</div>
+
+<script src="mock-api.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  window.COMMAND_ISSUER = "AI";
+</script>
+<script src="command.js"></script>
+<script>
+  // 演示：推送后立刻拉取（正式环境靠 15 秒轮询 / 推送通知唤醒）
+  function push(t, m) { if (!t.trim()) return; mockPushCommand(t.trim(), Number(m) || 0); pollCommands(); }
+  $("d-push").onclick = () => push($("d-title").value, $("d-min").value);
+  document.querySelectorAll(".chips button").forEach((b) => b.onclick = () => push(b.dataset.t, b.dataset.m));
+  addEventListener("command-feedback", () => { const f = mockConsumeFeedback(); if (f) $("d-feedback").textContent = f; });
+</script>
+</body>
+</html>
