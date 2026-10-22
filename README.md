@@ -48,6 +48,16 @@ cd demo && python3 -m http.server 8000
 
    这段每轮都会变，只能放在不缓存的尾部，不要放进提示词缓存段。
 
+## 换成你的 AI 名字
+
+页面里设置一次即可，默认是 "AI"：
+
+```html
+<script>window.COMMAND_ISSUER = "你的 AI 名字";</script>
+```
+
+灵动岛与锁屏会显示「〈名字〉下的指令」「〈名字〉：指令内容」，完成后显示「告诉〈名字〉你做完了。」网页上的药丸和卡片本身不显示名字。
+
 ## 灵动岛（可选）
 
 `ios/` 三个文件：
@@ -56,7 +66,7 @@ cd demo && python3 -m http.server 8000
 - `CommandActivityWidget.swift`：锁屏条、灵动岛展开 / 紧凑 / 最小四种形态，只勾 Widget Extension。
 - `CommandActivityBridge.swift`：WKWebView 消息桥，只勾主 App。网页端 `command.js` 会自动调用 `window.webkit.messageHandlers.commandActivity`，没有这个桥时静默跳过。
 
-倒计时使用 `Text(endsAt, style: .timer)`，到点后系统自动转为正向计时；`staleDate` 设为截止时刻，让系统到点重绘为超时配色。署名默认 "AI"，网页端可设 `window.COMMAND_ISSUER`。
+倒计时使用 `Text(endsAt, style: .timer)`，到点后系统自动转为正向计时；`staleDate` 设为截止时刻，让系统到点重绘为超时配色。署名见上一节。
 
 ## 许可
 
