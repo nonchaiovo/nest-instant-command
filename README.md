@@ -4,7 +4,7 @@ NEST Instant Commands
 
 让 AI 在回复里给你下一条带倒计时的指令：屏幕右缘出现计时药丸，锁屏和灵动岛同步倒数，超时转红色计时。你做完左滑，**用了多久、比预设快了还是慢了，AI 下一轮就知道**。
 
-演示视频与介绍：[chai-and-non.pages.dev](https://chai-and-non.pages.dev/#command)
+**[在线试玩 →](https://chai-and-non.pages.dev/#command)** Chai & Non 官网上的实机演示
 
 ## 本地试玩
 
