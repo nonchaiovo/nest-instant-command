@@ -105,7 +105,7 @@ async function showCommand(cmd) {
     try {
       const r = await api("POST", "/api/commands/" + cmd.id + "/started");
       cmd.started_at = r.started_at;
-    } catch (e) { cmd.started_at = Date.now(); }
+    } catch (e) { cmd.started_at = cmd.created_at || Date.now(); } // 计时从指令推出时刻算
   }
   $("cmd-card-text").textContent = cmd.title || "";
   // "起"：started_at 的 HH:MM
@@ -233,7 +233,11 @@ async function completeCurrentCommand() {
   if (commandTickTimer) { clearInterval(commandTickTimer); commandTickTimer = null; }
   if (navigator.vibrate) try { navigator.vibrate(20); } catch {}
   hideAll();
-  showResult("done", "已完成");
+  // 完成胶囊带上用时；有倒计时且超了就显示超时多久
+  const usedS = Math.max(0, Math.floor((Date.now() - (cmd.started_at || cmd.created_at || Date.now())) / 1000));
+  const mmss = n => String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
+  const overS = cmd.countdown_seconds ? usedS - cmd.countdown_seconds : 0;
+  showResult("done", overS > 0 ? "完成 · 超时 " + mmss(overS) : "完成 · 用时 " + mmss(usedS));
   postCommandActivity({ type: "end", commandId: cmd.id }); // app 内已弹"已完成"反馈,岛立刻撤,不留 6s 残留
   try { await api("POST", "/api/commands/" + cmd.id + "/complete"); } catch (e) {}
   setTimeout(pollCommands, 1800);

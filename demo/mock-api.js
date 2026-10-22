@@ -20,7 +20,7 @@
     let m = path.match(/^\/api\/commands\/(\d+)\/started$/);
     if (m && method === "POST") {
       const c = db.items.find((x) => x.id === +m[1]);
-      if (c && !c.started_at) c.started_at = Date.now();
+      if (c && !c.started_at) c.started_at = c.created_at; // 计时从推出时刻算
       save(db); return { ok: true, started_at: c?.started_at || Date.now() };
     }
     m = path.match(/^\/api\/commands\/(\d+)\/complete$/);

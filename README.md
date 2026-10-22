@@ -37,7 +37,9 @@ cd demo && python3 -m http.server 8000
 
 1. **AI 下指令**：在系统提示里告诉模型可以写
    `<countdown>{"title":"去喝水","minutes":1}</countdown>`（不带 `minutes` 为不计时）。
-   保存回复时用 `extractCountdowns(body)` 解析、`createCommands(env, items)` 落库，并把标签从展示正文里去掉。
+   保存回复时用 `extractCountdowns(body)` 解析、`createCommands(env, items, notify)` 落库，并把标签从展示正文里去掉。
+   **计时从推出那一刻就开始**，用户切到别的 App 也照走，回来看到的是真实剩余或已超时。所以用户不在前台时要通知：
+   第三个参数 `notify(env, cmd)` 会在每条新指令落库后调用，在里面发你 App 用的推送（Web Push、Bark、APNs 都行）。
 2. **前端显示**：页面引入 `command.css`、`index.html` 里的四段组件结构和 `command.js`；`command.js` 每 15 秒轮询 `/api/commands/pending`，你也可以在推送通知到达时直接调用 `pollCommands()`。
 3. **AI 知道结果**：用户下一条消息送进模型前，调用 `consumeCommandFeedback(env)`，把返回的文字拼进本轮上下文，例如：
 

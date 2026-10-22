@@ -1,7 +1,7 @@
 // 即时指令 · 服务端参考实现（Cloudflare Workers + D1，从 NEST 生产代码整理）
 //
 //   GET    /api/commands/pending        前端轮询，拿还没做完的指令
-//   POST   /api/commands/:id/started    前端第一次显示时回写开始时间
+//   POST   /api/commands/:id/started    前端第一次显示时确认开始时间（= 指令推出时刻）
 //   POST   /api/commands/:id/complete   左滑完成 → 记录用时，删掉指令
 //   DELETE /api/commands/:id            长按取消 → 直接删掉（不通知 AI）
 //
@@ -35,8 +35,10 @@ export async function handleCommands(request, env) {
 }
 
 async function startCommand(env, id) {
+  // 倒计时从 AI 推出指令的那一刻算（created_at），而不是用户切回来看到的时刻：
+  // 用户不在前台时也在走，回来看到的就是真实剩余 / 已超时。
   const t = Date.now();
-  await env.DB.prepare(`UPDATE commands SET started_at = ? WHERE id = ? AND started_at IS NULL`).bind(t, id).run();
+  await env.DB.prepare(`UPDATE commands SET started_at = COALESCE(created_at, ?) WHERE id = ? AND started_at IS NULL`).bind(t, id).run();
   const row = await env.DB.prepare(`SELECT started_at FROM commands WHERE id = ?`).bind(id).first();
   if (!row) return json({ error: "not found" }, 404);
   return json({ ok: true, started_at: row.started_at || t });
@@ -121,7 +123,9 @@ export function extractCountdowns(body) {
   return items;
 }
 
-export async function createCommands(env, items) {
+// notify（可选）：新指令落库后调用 notify(env, cmd)，用来在用户不在前台时发推送
+//   （Web Push、Bark、APNs……按你的 App 来）。计时已经开始，不通知用户就不知道。
+export async function createCommands(env, items, notify) {
   const out = [];
   for (const it of items) {
     const t = Date.now();
@@ -132,7 +136,11 @@ export async function createCommands(env, items) {
     const r = await env.DB.prepare(
       `INSERT INTO commands (title, countdown_seconds, created_at, created_by) VALUES (?, ?, ?, 'ai')`
     ).bind(it.title, it.countdown_seconds, t).run();
-    out.push({ id: r.meta.last_row_id, ...it });
+    const cmd = { id: r.meta.last_row_id, ...it, created_at: t };
+    if (notify) {
+      try { await notify(env, cmd); } catch (e) { console.error("command notify err:", e.message); }
+    }
+    out.push(cmd);
   }
   return out;
 }
